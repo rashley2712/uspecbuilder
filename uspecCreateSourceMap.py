@@ -51,7 +51,7 @@ def determineFullFrameSize(windows):
 
 if __name__ == "__main__":
 	
-	parser = argparse.ArgumentParser(description='Reads the Ultraspec [dd-mm-yyyy/runxxx.dat] files produces previews of the images')
+	parser = argparse.ArgumentParser(description='Reads the ULTRASPEC [dd-mm-yyyy/runxxx.dat] files and prepares the run for aperture identification. Also produces previews of the images.')
 	parser.add_argument('runname', type=str, help='Ultracam run name  [eg 2013-07-21/run010]')
 	parser.add_argument('-p', '--preview', action='store_true', help='Show image previews with Matplotlib')
 	parser.add_argument('-s', '--stack', action='store_true', help='Stack the images in the preview window')
