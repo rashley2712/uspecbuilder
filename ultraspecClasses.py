@@ -157,6 +157,19 @@ class source:
 		self.latestPosition = (0, 0)
 		self.fluxMeasurements = []
 		self.latestFlux = 0
+		self.polyFit = {}
+		self.polyFit["x"] = {}
+		self.polyFit["x"]["order"] = 0
+		self.polyFit["y"] = {}
+		self.polyFit["y"]["order"] = 0
+		
+	def setPolynomial(self, axis, order, parameters):
+		if axis!="x" and axis!="y": return False
+		self.polyFit[axis]["order"] = order
+		self.polyFit[axis]["parameters"] = parameters
+		print "Setting polynomial:", axis, order, parameters
+		return True
+		
 		
 	def setDAOPhotData(self, sharpness, roundness1, roundness2, npix, sky, peak, flux, mag):
 		self.sharpness = sharpness

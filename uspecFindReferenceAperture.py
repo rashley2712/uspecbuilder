@@ -338,40 +338,61 @@ if __name__ == "__main__":
 			         [ (yPeak+1)**2, (yPeak+1) , 1 ] ]
 			yMat = [ yCollapsed[yPeak-1], yCollapsed[yPeak], yCollapsed[yPeak+1] ]
 			(a, b, c) = numpy.linalg.solve(xMat, yMat)
+			yPoly = (a, b, c)
 			newyPeak = -1.0 * b / (2.0 * a)
 
 			# Fit a Gaussian with pre-defined FWHM to the collapsed profiles.
-			fwhm = 3.0
+			# X - direction
+			fwhm = 2.5
 			c = fwhm / 2.355
-			b = 0.
+			b = 0.0
 			baseLevel = numpy.median(xCollapsed)
 			a = numpy.max(xCollapsed) - baseLevel
 			d = baseLevel
 			numGaussianPoints = len(xCollapsed)
 			xGaussian = [float(x) * 2*margins/numGaussianPoints - margins for x in range(numGaussianPoints)]
 			result, covariance = scipy.optimize.curve_fit(shifting_gaussian, xGaussian, xCollapsed, b)
-			bestOffset = result[0]
-			bestOffsetError = numpy.sqrt(numpy.diag(covariance))[0]
-			print bestOffset, bestOffsetError, result, covariance
-			yGaussian = [gaussian(x, a, bestOffset, c, d) for x in xGaussian]
+			xBestOffset = result[0]
+			xBestOffsetError = numpy.sqrt(numpy.diag(covariance))[0]
+			debug.write("x-offset: %f [%f]"%(xBestOffset, xBestOffsetError), 3)
+			xGaussianFit = [gaussian(x, a, xBestOffset, c, d) for x in xGaussian]
+			xcen = xBestOffset + margins
 			
-			xcen = bestOffset + margins
-			ycen = newyPeak
+			# Y - direction
+			fwhm = 2.5
+			c = fwhm / 2.355
+			b = 0.0
+			baseLevel = numpy.median(yCollapsed)
+			a = numpy.max(yCollapsed) - baseLevel
+			d = baseLevel
+			numGaussianPoints = len(yCollapsed)
+			yGaussian = [float(x) * 2*margins/numGaussianPoints - margins for x in range(numGaussianPoints)]
+			result, covariance = scipy.optimize.curve_fit(shifting_gaussian, yGaussian, yCollapsed, b)
+			yBestOffset = result[0]
+			yBestOffsetError = numpy.sqrt(numpy.diag(covariance))[0]
+			debug.write("y-offset: %f [%f]"%(yBestOffset, yBestOffsetError), 3)
+			yGaussianFit = [gaussian(x, a, yBestOffset, c, d) for x in yGaussian]
+			ycen = yBestOffset + margins
+			
 			#print "Centroid method: (%f, %f)   vs   Quadratic fit: (%f, %f)"%(xcen, ycen, newxPeak, newyPeak) 
 			if index==watch:
 				ppgplot.pgslct(watchView['pgplotHandle'])
 				ppgplot.pgbbuf()
 				ppgplot.pgeras()
+				
+				# Image of the watched source
 				ppgplot.pgsvp(0.1, 0.7, 0.3, 0.9)
 				ppgplot.pgswin(-margins, margins, -margins, margins)
 				zRows, zCols = numpy.shape(zoomImageData)
 				preview = ultracamutils.percentiles(zoomImageData, 20, 99)
 				ppgplot.pggray(preview, 0, zCols-1, 0, zRows-1, 0, 255, watchView['pgPlotTransform'])
 			
+				# Graph of the x-direction
 				ppgplot.pgsvp(0.1, 0.7, 0.1, 0.2)
 				yMax = numpy.max(xCollapsed) * 1.1
-				yMin = numpy.min(xCollapsed) *0.9
+				yMin = numpy.min(xCollapsed) * 0.9
 				ppgplot.pgswin(-margins, margins, yMin, yMax)
+				ppgplot.pgsci(1)
 				ppgplot.pgbox('ABI', 1.0, 10, 'ABI', 0.0, 0)
 				xPoints = [x - margins for x in range(len(xCollapsed))]
 				ppgplot.pgsci(2)
@@ -384,17 +405,41 @@ if __name__ == "__main__":
 				ppgplot.pgsls(2)
 				ppgplot.pgline([newxPeak-margins, newxPeak-margins], [yMin, yMax]) 
 				ppgplot.pgsci(4)
-				ppgplot.pgline([bestOffset, bestOffset], [yMin, yMax])
+				ppgplot.pgline([xBestOffset, xBestOffset], [yMin, yMax])
 				ppgplot.pgsls(1)
-				ppgplot.pgline(xGaussian, yGaussian)
+				ppgplot.pgline(xGaussian, xGaussianFit)
+				
+				# Graph of the y-direction
+				ppgplot.pgsvp(0.8, 0.9, 0.3, 0.9)
+				yMax = numpy.max(yCollapsed) * 1.1
+				yMin = numpy.min(yCollapsed) * 0.9
+				ppgplot.pgswin(yMin, yMax, -margins, margins)
+				ppgplot.pgsci(1)
+				ppgplot.pgbox('ABI', 0.0, 0, 'ABI', 1.0, 10)
+				xPoints = [x - margins for x in range(len(yCollapsed))]
+				ppgplot.pgsci(2)
+				ppgplot.pgbin(yCollapsed, xPoints, True)
+				numPolyPoints = 50
+				xFit = [float(i) * len(xCollapsed)/numPolyPoints for i in range(numPolyPoints)]
+				yFit = [yPoly[0]*x*x + yPoly[1]*x + yPoly[2] for x in xFit]
+				ppgplot.pgsci(3)
+				ppgplot.pgline(yFit, [x - margins for x in xFit])
+				ppgplot.pgsls(2)
+				ppgplot.pgline([yMin, yMax], [newyPeak-margins, newyPeak-margins]) 
+				ppgplot.pgsci(4)
+				ppgplot.pgline([yMin, yMax], [yBestOffset, yBestOffset])
+				ppgplot.pgsls(1)
+				ppgplot.pgline(yGaussianFit, yGaussian)
+				
+				
 				ppgplot.pgsci(1)
 				ppgplot.pgebuf()
 			
 			xcen+= xcenterOffset
 			ycen+= ycenterOffset
 			
-			xError = bestOffsetError
-			yError = 0
+			xError = xBestOffsetError
+			yError = yBestOffsetError
 			s.setLatestPosition(trueFrameNumber, (xcen, ycen), errors = (xError, yError))
 			apertures = CircularAperture((xcen, ycen), r=apertureRadius)
 			annulus_apertures = CircularAnnulus((xcen, ycen), r_in=innerSkyRadius, r_out=outerSkyRadius)
@@ -438,7 +483,6 @@ if __name__ == "__main__":
 					ppgplot.pgsci(2)
 					ppgplot.pgpanl(1, p + 1)
 					ppgplot.pgpt(xValues, yValues, 1)
-					print yErrors
 					ppgplot.pgerry(xValues, yValues + yErrors, yValues + yErrors, 0)
 					yValues = [log['position'][1] - a.position[1] for log in a.positionLog]
 					ppgplot.pgsci(3)
@@ -468,7 +512,6 @@ if __name__ == "__main__":
 		ppgplot.pgslct(watchView['pgplotHandle'])
 		ppgplot.pgclos()
 	
-	
 	# Sort the apertures by coverage
 	referenceApertures.calculateFrameCoverage(frameRange-1)   # The '-1' is because we don't get photometry from the first frame
 	referenceApertures.sortByCoverage()
@@ -487,6 +530,7 @@ if __name__ == "__main__":
 		ppgplot.pgpanl(1, p + 1)
 		yValues = numpy.polyval(polynomial, xValues)
 		ppgplot.pgpt(xValues, yValues, 1)
+		referenceAperture.setPolynomial("x", polynomialDegree, polynomial)
 	
 		yValues = [log['position'][1] - referenceAperture.position[1] for log in referenceAperture.positionLog]
 		polynomial = numpy.polyfit(xValues, yValues, polynomialDegree)
@@ -496,7 +540,8 @@ if __name__ == "__main__":
 		ppgplot.pgpanl(1, p + 1)
 		yValues = numpy.polyval(polynomial, xValues)
 		ppgplot.pgpt(xValues, yValues, 1)
-	
+		referenceAperture.setPolynomial("y", polynomialDegree, polynomial)
+		
 	
 	ppgplot.pgslct(xyPositionPlot['pgplotHandle'])
 	ppgplot.pgclos()
