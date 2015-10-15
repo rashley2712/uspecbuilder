@@ -241,7 +241,8 @@ if __name__ == "__main__":
 	
 	""" End of PGPLOT set up """
 	
-					
+	frameFlags = []
+	
 	xValues = []
 	yValues = []	
 	yAxisMax= 100	
@@ -302,6 +303,12 @@ if __name__ == "__main__":
 		for index, s in enumerate(referenceApertures.getSources()):
 			window = allWindows[s.windowIndex]
 			center = s.latestPosition
+			if s.recentFail:
+				print "Recent fail... will try a position at least 5 frames back"
+				positions = s.positionLog
+				if len(positions)>5:
+					center = positions[-5]['position']
+				print "Using positions:", center
 			xcenterInt = int(center[0])
 			xcenterOffset = center[0] - margins
 			#xcenterOffset = xcenterInt - margins
@@ -322,6 +329,13 @@ if __name__ == "__main__":
 			if (yPeak==len(yCollapsed)-1) or (yPeak == 0) \
 				or (xPeak==len(xCollapsed)-1) or (xPeak == 0):
 				print "Peak too close to the edge [%d, %d] ... skipping this aperture [%d] for this frame [%d]."%(xPeak,yPeak, index, trueFrameNumber)
+				# Flag this frame as a potential 'glitch' frame
+				flagInfo = {}
+				flagInfo['number'] = trueFrameNumber
+				flagInfo['issue'] = "Peak of counts at the margin edge."
+				flagInfo['aperture'] = index
+				frameFlags.append(flagInfo)
+				s.recentFail = True
 				continue
 
 			# Fit quadratic polynomials to the collapsed profiles in the X-Y axis
@@ -351,7 +365,17 @@ if __name__ == "__main__":
 			d = baseLevel
 			numGaussianPoints = len(xCollapsed)
 			xGaussian = [float(x) * 2*margins/numGaussianPoints - margins for x in range(numGaussianPoints)]
-			result, covariance = scipy.optimize.curve_fit(shifting_gaussian, xGaussian, xCollapsed, b)
+			try:
+				result, covariance = scipy.optimize.curve_fit(shifting_gaussian, xGaussian, xCollapsed, b)
+			except RuntimeError:
+				print "Failed to 'curve_fit'"
+				# Flag this frame as a potential 'glitch' frame
+				flagInfo = {}
+				flagInfo['number'] = trueFrameNumber
+				flagInfo['issue'] = "Failed to 'curve_fit' the gaussian peak."
+				flagInfo['aperture'] = index
+				frameFlags.append(flagInfo)
+				
 			xBestOffset = result[0]
 			xBestOffsetError = numpy.sqrt(numpy.diag(covariance))[0]
 			debug.write("x-offset: %f [%f]"%(xBestOffset, xBestOffsetError), 3)
@@ -367,7 +391,17 @@ if __name__ == "__main__":
 			d = baseLevel
 			numGaussianPoints = len(yCollapsed)
 			yGaussian = [float(x) * 2*margins/numGaussianPoints - margins for x in range(numGaussianPoints)]
-			result, covariance = scipy.optimize.curve_fit(shifting_gaussian, yGaussian, yCollapsed, b)
+			try:
+				result, covariance = scipy.optimize.curve_fit(shifting_gaussian, yGaussian, yCollapsed, b)
+			except RuntimeError:
+				print "Failed to 'curve_fit'"
+				# Flag this frame as a potential 'glitch' frame
+				flagInfo = {}
+				flagInfo['number'] = trueFrameNumber
+				flagInfo['issue'] = "Failed to 'curve_fit' the gaussian peak."
+				flagInfo['aperture'] = index
+				frameFlags.append(flagInfo)
+				
 			yBestOffset = result[0]
 			yBestOffsetError = numpy.sqrt(numpy.diag(covariance))[0]
 			debug.write("y-offset: %f [%f]"%(yBestOffset, yBestOffsetError), 3)
@@ -512,12 +546,6 @@ if __name__ == "__main__":
 		ppgplot.pgslct(watchView['pgplotHandle'])
 		ppgplot.pgclos()
 	
-	# Sort the apertures by coverage
-	referenceApertures.calculateFrameCoverage(frameRange-1)   # The '-1' is because we don't get photometry from the first frame
-	referenceApertures.sortByCoverage()
-	minCoverage = 80.0
-	referenceApertures.limitCoverage(minCoverage)
-	referenceApertures.sortByFlux()
 	
 	# Fit polynomials to the positions of the reference apertures
 	for p, referenceAperture in enumerate(referenceApertures.getSources()):
@@ -546,6 +574,22 @@ if __name__ == "__main__":
 	ppgplot.pgslct(xyPositionPlot['pgplotHandle'])
 	ppgplot.pgclos()
 	
+	# Sort the apertures by coverage
+	referenceApertures.calculateFrameCoverage(frameRange-1)   # The '-1' is because we don't get photometry from the first frame
+	referenceApertures.sortByCoverage()
+	minCoverage = 80.0
+	referenceApertures.limitCoverage(minCoverage)
+	referenceApertures.sortByFlux()
+	
+	# Write out the frame flag info as a CSV file....
+	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_frameFlags.csv" 
+	outputfile = open(outputFilename, 'w')
+	lineString = "Frame, Aperture, Reason\n"
+	outputfile.write(lineString)
+	for f in frameFlags:
+		lineString = "%d, %d, %s\n"%(f['number'], f['aperture'], f['issue'])
+		outputfile.write(lineString)
+	outputfile.close()
 	
 	# Write the reference aperture data as a CSV file
 	referenceAperture = referenceApertures.getSources()[0]
