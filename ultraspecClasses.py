@@ -139,8 +139,12 @@ class referenceApertures:
 		
 	def limitCoverage(self, minCoverage):
 		newSources = []
+			
 		for s in self.sources:
-			if s.coverage>=minCoverage: newSources.append(s)
+			if s.coverage>=minCoverage: 
+				newSources.append(s)
+			else:
+				print "Removing aperture: ", s
 		self.sources = newSources
 
 class source:
@@ -162,6 +166,7 @@ class source:
 		self.polyFit["x"]["order"] = 0
 		self.polyFit["y"] = {}
 		self.polyFit["y"]["order"] = 0
+		self.recentFail = False
 		
 	def setPolynomial(self, axis, order, parameters):
 		if axis!="x" and axis!="y": return False
@@ -203,6 +208,7 @@ class source:
 		logEntry['frameNumber'] = frameNumber
 		logEntry['position'] = newPosition
 		logEntry['positionError'] = errors
+		self.recentFail = False
 		self.positionLog.append(logEntry)
 		
 	def addFluxMeasurement(self, frameNumber, flux):
