@@ -15,7 +15,7 @@ from trm.ultracam.UErrors import PowerOnOffError, UendError, UltracamError
 import ultracam_shift
 import time, datetime
 import json
-import Image
+from PIL import Image
 import ucamObjectClass
 from photutils import datasets
 from photutils import daofind
