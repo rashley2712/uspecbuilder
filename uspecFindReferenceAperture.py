@@ -570,7 +570,6 @@ if __name__ == "__main__":
 		ppgplot.pgpt(xValues, yValues, 1)
 		referenceAperture.setPolynomial("y", polynomialDegree, polynomial)
 		
-	
 	ppgplot.pgslct(xyPositionPlot['pgplotHandle'])
 	ppgplot.pgclos()
 	
@@ -590,6 +589,22 @@ if __name__ == "__main__":
 		lineString = "%d, %d, %s\n"%(f['number'], f['aperture'], f['issue'])
 		outputfile.write(lineString)
 	outputfile.close()
+	
+	# Write out the aperture polynomials as a JSON object
+	polynomials = []
+	for index, s in enumerate(referenceApertures.getSources()):
+		polynomial = {}
+		polynomial = s.polyFit
+		polynomial['aperture'] = index
+		polynomial['reference'] = s.position
+		polynomial['x']['parameters'] = list(polynomial['x']['parameters'])
+		polynomial['y']['parameters'] = list(polynomial['y']['parameters'])
+		polynomials.append(polynomial)
+	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_aperture_polynomials.csv"
+	outputFile = open(outputFilename, 'w')
+	outputFile.write(json.dumps(polynomials))
+	outputFile.close()
+		
 	
 	# Write the reference aperture data as a CSV file
 	referenceAperture = referenceApertures.getSources()[0]

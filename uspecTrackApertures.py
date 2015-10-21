@@ -308,7 +308,7 @@ if __name__ == "__main__":
 				positions = s.positionLog
 				if len(positions)>5:
 					center = positions[-5]['position']
-				print "Using positions:", center
+				print "Using position:", center
 			xcenterInt = int(center[0])
 			xcenterOffset = center[0] - margins
 			#xcenterOffset = xcenterInt - margins
@@ -495,6 +495,9 @@ if __name__ == "__main__":
 		
 		ppgplot.pgslct(xyPositionPlot['pgplotHandle'])
 		for panel, aperture in enumerate(referenceApertures.getSources()):
+			if aperture.recentFail: 
+				print "Recent fail"
+				continue
 			xPosition, yPosition = numpy.subtract(aperture.latestPosition, aperture.position)
 			# Check if we need to re-scale the vertical axis
 			yLimit = xyPositionPlot['yLimit']
@@ -600,7 +603,6 @@ if __name__ == "__main__":
 		polynomial['x']['parameters'] = list(polynomial['x']['parameters'])
 		polynomial['y']['parameters'] = list(polynomial['y']['parameters'])
 		polynomials.append(polynomial)
-	print polynomials
 	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_aperture_polynomials.csv"
 	outputFile = open(outputFilename, 'w')
 	outputFile.write(json.dumps(polynomials))
